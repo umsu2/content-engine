@@ -2,6 +2,7 @@ from flask import current_app
 from web import app
 import unittest
 import json
+from engines import ContentEngine
 
 
 class ContentEngineTestCase(unittest.TestCase):
@@ -10,10 +11,8 @@ class ContentEngineTestCase(unittest.TestCase):
         ctx = app.test_request_context()
         ctx.push()
 
-        from engines import content_engine
-
+        content_engine = ContentEngine()
         content_engine.train('sample-data.csv')
-
         data = {'item': 1, 'num': 10}
         headers = [('Content-Type', 'application/json'), ('X-API-TOKEN', current_app.config['API_TOKEN'])]
         json_data = json.dumps(data)
@@ -23,7 +22,7 @@ class ContentEngineTestCase(unittest.TestCase):
         response = app.test_client().post('/predict', headers=headers, data=json_data)
         response = json.loads(response.data)
         self.assertEqual(len(response), 10)
-        self.assertEqual(response[0][0], "19")  # Boxers are like boxers.
+        self.assertEqual(response[0]['id'], "19")  # Boxers are like boxers.
 
 if __name__ == '__main__':
     unittest.main()

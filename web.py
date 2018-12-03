@@ -1,8 +1,9 @@
-from flask.ext.api import FlaskAPI
+from flask import Flask
 from flask import request, current_app, abort
 from functools import wraps
-
-app = FlaskAPI(__name__)
+from flask import jsonify
+from engines import ContentEngine
+app = Flask(__name__)
 app.config.from_object('settings')
 
 
@@ -18,21 +19,25 @@ def token_auth(f):
 @app.route('/predict', methods=['POST'])
 @token_auth
 def predict():
-    from engines import content_engine
-    item = request.data.get('item')
-    num_predictions = request.data.get('num', 10)
+    content_engine = ContentEngine()
+    req = request.get_json()
+    item = req['item']
+    num_predictions = req['num'] or 10
     if not item:
-        return []
-    return content_engine.predict(str(item), num_predictions)
+        return jsonify([])
+    result = content_engine.predict(str(item), num_predictions)
+    result = [{"id":item[0].decode("utf-8") ,"probability":item[1]} for item in result]
+    return jsonify(result)
+
 
 
 @app.route('/train')
 @token_auth
 def train():
-    from engines import content_engine
-    data_url = request.data.get('data-url', None)
+    content_engine = ContentEngine()
+    data_url = request.args.get('data-url', None)
     content_engine.train(data_url)
-    return {"message": "Success!", "success": 1}
+    return jsonify({"message": "Success!", "success": 1})
 
 
 if __name__ == '__main__':

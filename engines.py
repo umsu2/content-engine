@@ -9,7 +9,12 @@ from sklearn.metrics.pairwise import linear_kernel
 def info(msg):
     current_app.logger.info(msg)
 
+def concat_func(x):
+    val_array = x.values
 
+    result = ' '.join(str(r) for r in val_array)
+
+    return result
 class ContentEngine(object):
 
     SIMKEY = 'p:smlr:%s'
@@ -19,14 +24,19 @@ class ContentEngine(object):
 
     def train(self, data_source):
         start = time.time()
-        ds = pd.read_csv(data_source)
+        ds = pd.read_csv(data_source, sep=",", encoding="utf-8",escapechar='\\')
+
+        newds = ds.drop(columns=['id','shopid','created_at','product_type','published_at','template_suffix','updated_at'])
+        newds['description'] = newds[['title','body_html','handle','vendor','tags']].apply(concat_func,axis=1)
+        result = newds.filter(['prodid','description'])
+        result = result.rename(columns={'prodid': 'id'})
         info("Training data ingested in %s seconds." % (time.time() - start))
 
         # Flush the stale training data from redis
         self._r.flushdb()
 
         start = time.time()
-        self._train(ds)
+        self._train(result)
         info("Engine trained in %s seconds." % (time.time() - start))
 
     def _train(self, ds):
@@ -54,12 +64,20 @@ class ContentEngine(object):
 
         for idx, row in ds.iterrows():
             similar_indices = cosine_similarities[idx].argsort()[:-100:-1]
-            similar_items = [(cosine_similarities[idx][i], ds['id'][i]) for i in similar_indices]
+            similar_items = ((cosine_similarities[idx][i], ds['id'][i]) for i in similar_indices)
 
-            # First item is the item itself, so remove it.
-            # This 'sum' is turns a list of tuples into a single tuple: [(1,2), (3,4)] -> (1,2,3,4)
-            flattened = sum(similar_items[1:], ())
-            self._r.zadd(self.SIMKEY % row['id'], *flattened)
+            # ignore first item because it is itself
+            mapping = {}
+            first_item = True
+            for item in similar_items:
+                if first_item:
+                    first_item = False
+                    continue
+                mapping[str(item[1])] = item[0]
+
+
+
+            self._r.zadd(self.SIMKEY % row['id'], mapping)
 
     def predict(self, item_id, num):
         """
@@ -73,4 +91,3 @@ class ContentEngine(object):
         return self._r.zrange(self.SIMKEY % item_id, 0, num-1, withscores=True, desc=True)
 
 
-content_engine = ContentEngine()
