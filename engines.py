@@ -9,14 +9,16 @@ from sklearn.metrics.pairwise import linear_kernel
 def info(msg):
     current_app.logger.info(msg)
 
+
 def concat_func(x):
     val_array = x.values
 
     result = ' '.join(str(r) for r in val_array)
 
     return result
-class ContentEngine(object):
 
+
+class ContentEngine(object):
     SIMKEY = 'p:smlr:%s'
 
     def __init__(self):
@@ -24,11 +26,12 @@ class ContentEngine(object):
 
     def train(self, data_source):
         start = time.time()
-        ds = pd.read_csv(data_source, sep=",", encoding="utf-8",escapechar='\\')
+        ds = pd.read_csv(data_source, sep=",", encoding="utf-8", escapechar='\\')
 
-        newds = ds.drop(columns=['id','shopid','created_at','product_type','published_at','template_suffix','updated_at'])
-        newds['description'] = newds[['title','body_html','handle','vendor','tags']].apply(concat_func,axis=1)
-        result = newds.filter(['prodid','description'])
+        newds = ds.drop(
+            columns=['id', 'shopid', 'created_at', 'product_type', 'published_at', 'template_suffix', 'updated_at'])
+        newds['description'] = newds[['title', 'body_html', 'handle', 'vendor', 'tags']].apply(concat_func, axis=1)
+        result = newds.filter(['prodid', 'description'])
         result = result.rename(columns={'prodid': 'id'})
         info("Training data ingested in %s seconds." % (time.time() - start))
 
@@ -75,8 +78,6 @@ class ContentEngine(object):
                     continue
                 mapping[str(item[1])] = item[0]
 
-
-
             self._r.zadd(self.SIMKEY % row['id'], mapping)
 
     def predict(self, item_id, num):
@@ -88,6 +89,4 @@ class ContentEngine(object):
         :return: A list of lists like: [["19", 0.2203], ["494", 0.1693], ...]. The first item in each sub-list is
         the item ID and the second is the similarity score. Sorted by similarity score, descending.
         """
-        return self._r.zrange(self.SIMKEY % item_id, 0, num-1, withscores=True, desc=True)
-
-
+        return self._r.zrange(self.SIMKEY % item_id, 0, num - 1, withscores=True, desc=True)

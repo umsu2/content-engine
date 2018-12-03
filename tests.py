@@ -24,5 +24,6 @@ class ContentEngineTestCase(unittest.TestCase):
         self.assertEqual(len(response), 10)
         self.assertEqual(response[0]['id'], "19")  # Boxers are like boxers.
 
+
 if __name__ == '__main__':
     unittest.main()

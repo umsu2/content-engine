@@ -3,6 +3,7 @@ from flask import request, current_app, abort
 from functools import wraps
 from flask import jsonify
 from engines import ContentEngine
+
 app = Flask(__name__)
 app.config.from_object('settings')
 
@@ -13,6 +14,7 @@ def token_auth(f):
         if request.headers.get('X-API-TOKEN', None) != current_app.config['API_TOKEN']:
             abort(403)
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -26,9 +28,8 @@ def predict():
     if not item:
         return jsonify([])
     result = content_engine.predict(str(item), num_predictions)
-    result = [{"id":item[0].decode("utf-8") ,"probability":item[1]} for item in result]
+    result = [{"id": item[0].decode("utf-8"), "probability": item[1]} for item in result]
     return jsonify(result)
-
 
 
 @app.route('/train')
